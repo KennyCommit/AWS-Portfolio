@@ -1,0 +1,41 @@
+name: Deploy to S3
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Sync files to S3
+        run: |
+          aws s3 sync . s3://kennylabs.link \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude "README.md" \
+            --delete
+
+      - name: Invalidate CloudFront cache (kennylabs.link)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E1HOTTKOZ9S88Y \
+            --paths "/*"
+
+      - name: Invalidate CloudFront cache (www.kennylabs.link)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E3VYL4W1R9DM7N \
+            --paths "/*"
